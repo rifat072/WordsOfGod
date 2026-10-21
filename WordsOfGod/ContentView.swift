@@ -6,54 +6,50 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Bindable private var reader = Reader.shared
+    private let player = RecitationPlayer.shared
 
     var body: some View {
         NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+            ChaptersView()
+                .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 360)
+                #if !os(macOS)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Settings", systemImage: "gearshape") { reader.isShowingSettings = true }
                     }
                 }
-                .onDelete(perform: deleteItems)
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
+                #endif
         } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            Group {
+                if let chapter = reader.selectedChapter {
+                    ChapterDetailView(chapter: chapter)
+                        .id(chapter.id)
+                } else if reader.isLoadingChapters {
+                    ProgressView()
+                } else {
+                    ContentUnavailableView("Select a Surah",
+                                           systemImage: "book.closed",
+                                           description: Text("Choose a surah from the sidebar to start reading."))
+                }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if player.isLoaded {
+                    AudioPlayerBar()
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.snappy, value: player.isLoaded)
         }
+        .task { await reader.loadChapters() }
+        #if !os(macOS)
+        .sheet(isPresented: $reader.isShowingSettings) { SettingsView() }
+        #endif
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }

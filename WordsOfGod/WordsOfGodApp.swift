@@ -6,27 +6,29 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct WordsOfGodApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    init() {
+        QuranFont.registerBundledFonts()
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                #if os(macOS)
+                .frame(minWidth: 760, minHeight: 520)
+                .onAppear { PlaybackKeyMonitor.install() }
+                #endif
+                .task { await AppSettings.shared.load() }
         }
-        .modelContainer(sharedModelContainer)
+        .commands { AppCommands() }
+
+        #if os(macOS)
+        Settings {
+            SettingsView()
+        }
+        #endif
     }
 }

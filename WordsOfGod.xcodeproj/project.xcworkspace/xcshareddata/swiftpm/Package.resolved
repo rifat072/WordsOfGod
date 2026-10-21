@@ -1,0 +1,15 @@
+{
+  "originHash" : "004aaafd5dfa606e1c1d6f8eb7c3dcc2fcb7b634419d73f428ee7578e4b88e50",
+  "pins" : [
+    {
+      "identity" : "persistentavplayeritem",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/rifat072/PersistentAVPlayerItem",
+      "state" : {
+        "revision" : "8518be9300670671e21d90eda81b684b1433b3e8",
+        "version" : "1.1.0"
+      }
+    }
+  ],
+  "version" : 3
+}
