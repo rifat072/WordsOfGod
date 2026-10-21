@@ -38,10 +38,25 @@
 - Surahs you play are saved in full in the background (skipped on cellular and Low Data Mode unless you allow it)
 - Download one surah or all of them from Settings
 
+## Install on Mac
+
+1. Download `WordsOfGod-<version>.dmg` from [Releases](https://github.com/rifat072/WordsOfGod/releases/latest).
+2. Open the DMG and drag **WordsOfGod** to **Applications**.
+3. Open the app. The first time, macOS shows a warning that it can't verify the developer, because the app isn't notarized by Apple. Click **Done**.
+4. Open **System Settings → Privacy & Security**, scroll down to the message about WordsOfGod and click **Open Anyway**, then confirm.
+
+After that it opens normally. If you prefer the Terminal, this removes the download flag instead of steps 3–4:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/WordsOfGod.app
+```
+
+The app runs on Apple silicon and Intel Macs with macOS 26 or later. For iPhone and iPad, build it from source with Xcode (see below).
+
 ## Requirements
 
 - Xcode 27 or later
-- iOS 26 or iPadOS 26 or later, or macOS 27 or later
+- iOS 26, iPadOS 26 or macOS 26 (Tahoe) or later
 - Quran Foundation API credentials ([request access](https://api-docs.quran.foundation/docs/tutorials/oidc/getting-started-with-oauth2/#obtaining-oauth-20-client-credentials))
 
 ## Getting started
@@ -55,6 +70,8 @@
 
    Debug builds use the Quran Foundation pre-production environment, which has limited content. Release builds use production. Set `QF_ENVIRONMENT` in the file to change this.
 3. Open `WordsOfGod.xcodeproj` and run the **WordsOfGod** scheme on a Mac, iPhone or iPad.
+
+To build the Mac DMG, run `./scripts/build-dmg.sh`. It writes `dist/WordsOfGod-<version>.dmg`, a universal, sandboxed build signed ad hoc (no paid Apple Developer account needed).
 
 `Config/Secrets.xcconfig` is listed in `.gitignore`, so your credentials stay out of the repository. They are still compiled into the app's `Info.plist`, so anyone with a built copy of the app can read them.
 
