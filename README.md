@@ -68,7 +68,7 @@ The app runs on Apple silicon and Intel Macs with macOS 26 or later. For iPhone 
    cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig
    ```
 
-   Debug builds use the Quran Foundation pre-production environment, which has limited content. Release builds use production. Set `QF_ENVIRONMENT` in the file to change this.
+   Use production credentials. The pre-production environment is missing content, such as most word-by-word languages, and the app caches every response anyway.
 3. Open `WordsOfGod.xcodeproj` and run the **WordsOfGod** scheme on a Mac, iPhone or iPad.
 
 To build the Mac DMG, run `./scripts/build-dmg.sh`. It writes `dist/WordsOfGod-<version>.dmg`, a universal, sandboxed build signed ad hoc (no paid Apple Developer account needed).

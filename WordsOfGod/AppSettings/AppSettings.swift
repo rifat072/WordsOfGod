@@ -14,8 +14,10 @@ final class AppSettings {
 
     private(set) var reciters: [ChapterReciter] = []
     private(set) var translations: [Translation] = []
+    private(set) var tafsirs: [Tafsir] = []
     private(set) var recitersError: String?
     private(set) var translationsError: String?
+    private(set) var tafsirsError: String?
 
     var selectedReciterId: Int = Stored.value(.reciterId, default: 7) {
         didSet {
@@ -26,7 +28,10 @@ final class AppSettings {
     var selectedTranslationIds: [Int] = AppSettings.initialTranslationIds {
         didSet { Stored.set(selectedTranslationIds, for: .translationIds) }
     }
-    var wordTranslationLanguageCode: String = Stored.value(.wordTranslationLanguage, default: "en") {
+    var selectedTafsirId: Int = Stored.value(.tafsirId, default: 169) {
+        didSet { Stored.set(selectedTafsirId, for: .tafsirId) }
+    }
+    var wordTranslationLanguageCode: String = AppSettings.initialWordTranslationLanguage {
         didSet { Stored.set(wordTranslationLanguageCode, for: .wordTranslationLanguage) }
     }
 
@@ -80,6 +85,7 @@ final class AppSettings {
     }
 
     var selectedReciter: ChapterReciter? { reciters.first { $0.id == selectedReciterId } }
+    var selectedTafsir: Tafsir? { tafsirs.first { $0.id == selectedTafsirId } }
 
     func isTranslationSelected(_ id: Int) -> Bool { selectedTranslationIds.contains(id) }
 
@@ -99,6 +105,7 @@ final class AppSettings {
     func load() async {
         async let reciters = APIClient.shared.getChapterReciters()
         async let translations = APIClient.shared.getTranslationList()
+        async let tafsirs = APIClient.shared.getTafsirList()
 
         do {
             self.reciters = try await reciters
@@ -116,6 +123,18 @@ final class AppSettings {
         } catch {
             translationsError = error.localizedDescription
         }
+
+        do {
+            self.tafsirs = try await tafsirs
+            tafsirsError = nil
+        } catch {
+            tafsirsError = error.localizedDescription
+        }
+    }
+
+    private static var initialWordTranslationLanguage: String {
+        let stored: String = Stored.value(.wordTranslationLanguage, default: "en")
+        return WordTranslationLanguage.supported.contains { $0.code == stored } ? stored : "en"
     }
 
     private static var initialTranslationIds: [Int] {
@@ -141,7 +160,7 @@ enum RepeatCount {
 private enum Stored {
     enum Key: String {
         case reciterId = "chapterReciterId"
-        case translationIds, legacyTranslationId = "translationId"
+        case translationIds, legacyTranslationId = "translationId", tafsirId
         case wordTranslationLanguage, arabicFontSize, translationFontSize, script, quranFont, showsTajweed
         case showWordTranslation, showTransliteration, autoScroll, memorizationMode
         case savesPlayedSurahs, savesOverCellular

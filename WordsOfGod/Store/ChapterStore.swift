@@ -24,12 +24,15 @@ final class ChapterStore {
     func loadVerses(translationIds: [Int], wordLanguage: String) async {
         isLoadingVerses = true
         defer { isLoadingVerses = false }
+        print("REPRO loadVerses start \(chapter.id) \(wordLanguage) existing=\(verses.count)") // TEMP
         do {
             verses = try await APIClient.shared.getVerses(chapter: chapter.id,
                                                           translationIds: translationIds,
                                                           wordLanguage: wordLanguage)
+            print("REPRO loadVerses done \(wordLanguage) count=\(verses.count)") // TEMP
             versesError = nil
         } catch {
+            print("REPRO loadVerses error \(wordLanguage) cancelled=\(Task.isCancelled) \(error)") // TEMP
             guard !Task.isCancelled else { return }
             versesError = error.localizedDescription
         }

@@ -234,22 +234,48 @@ struct Translation: Decodable, Identifiable {
 }
 struct TranslationListResponse: Decodable { let translations: [Translation] }
 
+struct Tafsir: Decodable, Identifiable {
+    let id: Int
+    let name: String
+    let author_name: String?
+    let language_name: String
+}
+struct TafsirListResponse: Decodable { let tafsirs: [Tafsir] }
+
+struct VerseTafsir: Decodable {
+    let resource_name: String?
+    let text: String?
+    private let verses: [String: CoveredVerse]?
+
+    private struct CoveredVerse: Decodable {
+        let id: Int
+    }
+
+    var isEmpty: Bool { text?.isEmpty ?? true }
+
+    // One commentary passage often explains several consecutive verses together.
+    var coveredVerseKeys: [String] {
+        (verses ?? [:]).sorted { $0.value.id < $1.value.id }.map(\.key)
+    }
+}
+struct VerseTafsirResponse: Decodable { let tafsir: VerseTafsir }
+
 struct WordTranslationLanguage: Identifiable, Hashable {
     let code: String
     let name: String
 
     var id: String { code }
 
+    // Only languages the production API has word-by-word data for; any other code silently falls back to English.
     static let supported = [
         WordTranslationLanguage(code: "en", name: "English"),
-        WordTranslationLanguage(code: "ar", name: "Arabic"),
         WordTranslationLanguage(code: "bn", name: "Bengali"),
         WordTranslationLanguage(code: "ur", name: "Urdu"),
         WordTranslationLanguage(code: "id", name: "Indonesian"),
         WordTranslationLanguage(code: "tr", name: "Turkish"),
         WordTranslationLanguage(code: "fr", name: "French"),
-        WordTranslationLanguage(code: "es", name: "Spanish"),
-        WordTranslationLanguage(code: "ru", name: "Russian"),
-        WordTranslationLanguage(code: "fa", name: "Persian")
+        WordTranslationLanguage(code: "fa", name: "Persian"),
+        WordTranslationLanguage(code: "zh", name: "Chinese"),
+        WordTranslationLanguage(code: "sq", name: "Albanian")
     ]
 }

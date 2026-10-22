@@ -178,6 +178,10 @@ struct VerseActions: View {
         }
         .disabled(store.audio == nil)
 
+        Button("Tafsir", systemImage: "text.book.closed") {
+            Reader.shared.tafsirVerseKey = verse.verse_key
+        }
+
         Button("Copy", systemImage: "doc.on.doc") {
             Clipboard.copy(shareText)
         }

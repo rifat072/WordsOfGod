@@ -13,6 +13,8 @@ struct ChapterDetailView: View {
     @State private var isShowingTranslations = false
     @State private var isShowingRepeat = false
     @State private var scrollPosition = ScrollPosition(idType: Int.self)
+    @State private var resumeVerse: Int?
+    @State private var topVerse = 1
     @Bindable private var reader = Reader.shared
     private let player = RecitationPlayer.shared
     private let settings = AppSettings.shared
@@ -20,6 +22,7 @@ struct ChapterDetailView: View {
     init(chapter: Chapter) {
         self.chapter = chapter
         _store = State(initialValue: ChapterStore(chapter: chapter))
+        _resumeVerse = State(initialValue: Reader.shared.readingPosition(in: chapter.id))
     }
 
     private var isPlayerOnThisChapter: Bool { player.chapter?.id == chapter.id }
@@ -50,6 +53,11 @@ struct ChapterDetailView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollPosition($scrollPosition, anchor: .top)
+        .onScrollTargetVisibilityChange(idType: Int.self, threshold: 0.1) { visibleVerses in
+            guard let top = visibleVerses.min() else { return }
+            topVerse = top
+            reader.saveReadingPosition(top, in: chapter.id)
+        }
         .environment(store)
         .onChange(of: player.currentVerse) { followRecitation() }
         .onChange(of: player.isActivelyPlaying) { followRecitation() }
@@ -62,6 +70,13 @@ struct ChapterDetailView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: player.isPresentationVisible)
+        .inspector(isPresented: isShowingTafsir) {
+            if let verseKey = reader.tafsirVerseKey {
+                TafsirView(verseKey: verseKey)
+                    .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
+                    .presentationDetents([.medium, .large])
+            }
+        }
         .task(id: verseRequestKey) {
             await store.loadVerses(translationIds: settings.selectedTranslationIds,
                                    wordLanguage: settings.wordTranslationLanguageCode)
@@ -72,6 +87,11 @@ struct ChapterDetailView: View {
         .navigationTitle(chapter.name_simple)
         .navigationSubtitle(subtitle)
         .toolbar { toolbarContent }
+    }
+
+    private var isShowingTafsir: Binding<Bool> {
+        Binding(get: { reader.tafsirVerseKey != nil },
+                set: { if !$0 { reader.tafsirVerseKey = nil } })
     }
 
     private var subtitle: String {
@@ -106,8 +126,9 @@ struct ChapterDetailView: View {
     }
 
     private func revealPendingVerse() {
-        guard let verse = reader.verseToReveal, store.verse(verse) != nil else { return }
+        guard let verse = reader.verseToReveal ?? resumeVerse, store.verse(verse) != nil else { return }
         reader.verseToReveal = nil
+        resumeVerse = nil
         Task { scrollPosition.scrollTo(id: verse, anchor: .top) }
     }
 
@@ -143,6 +164,13 @@ struct ChapterDetailView: View {
         }
 
         ToolbarItemGroup(placement: .secondaryAction) {
+            Button {
+                reader.tafsirVerseKey = reader.tafsirVerseKey == nil ? "\(chapter.id):\(topVerse)" : nil
+            } label: {
+                Label("Tafsir", systemImage: "text.book.closed")
+            }
+            .help("Commentary on the verse at the top of the page")
+
             OfflineDownloadButton(audioURL: store.audio?.url)
 
             Button {

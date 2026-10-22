@@ -24,20 +24,6 @@ final class APIClient {
         }
     }
 
-    private struct Environment {
-        let tokenHost: URL
-        let contentHost: URL
-
-        static let prelive = Environment(
-            tokenHost: URL(string: "https://prelive-oauth2.quran.foundation")!,
-            contentHost: URL(string: "https://apis-prelive.quran.foundation/content/api/v4/")!
-        )
-        static let production = Environment(
-            tokenHost: URL(string: "https://oauth2.quran.foundation")!,
-            contentHost: URL(string: "https://apis.quran.foundation/content/api/v4/")!
-        )
-    }
-
     private struct Token {
         let accessToken: String
         let expiresAt: Date
@@ -45,7 +31,8 @@ final class APIClient {
 
     private let clientID: String
     private let clientSecret: String
-    private let environment: Environment
+    private let tokenHost = URL(string: "https://oauth2.quran.foundation")!
+    private let contentHost = URL(string: "https://apis.quran.foundation/content/api/v4/")!
     private let wordAudioHost = URL(string: "https://verses.quran.com")!
     private let session: URLSession
 
@@ -56,7 +43,6 @@ final class APIClient {
         let info = Bundle.main.infoDictionary ?? [:]
         clientID = info["QFClientID"] as? String ?? ""
         clientSecret = info["QFClientSecret"] as? String ?? ""
-        environment = (info["QFEnvironment"] as? String) == "prelive" ? .prelive : .production
 
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 20
@@ -105,6 +91,15 @@ extension APIClient {
                       query: ["segments": "true"],
                       as: ChapterAudioResponse.self).audio_file
     }
+
+    // Grouped commentary is stored on the group's first verse; the other verses come back empty.
+    func getTafsir(_ tafsirId: Int, verseKey: String) async throws -> VerseTafsir {
+        let tafsir = try await get("tafsirs/\(tafsirId)/by_ayah/\(verseKey)", as: VerseTafsirResponse.self).tafsir
+        guard tafsir.isEmpty, let groupStart = tafsir.coveredVerseKeys.first, groupStart != verseKey else {
+            return tafsir
+        }
+        return try await get("tafsirs/\(tafsirId)/by_ayah/\(groupStart)", as: VerseTafsirResponse.self).tafsir
+    }
 }
 
 //MARK: Resources
@@ -115,6 +110,10 @@ extension APIClient {
 
     func getTranslationList() async throws -> [Translation] {
         try await get("resources/translations", as: TranslationListResponse.self).translations
+    }
+
+    func getTafsirList() async throws -> [Tafsir] {
+        try await get("resources/tafsirs", as: TafsirListResponse.self).tafsirs
     }
 }
 
@@ -150,7 +149,7 @@ extension APIClient {
         guard !clientID.isEmpty, !clientSecret.isEmpty else { throw APIError.missingCredentials }
         let credentials = Data("\(clientID):\(clientSecret)".utf8).base64EncodedString()
 
-        var request = URLRequest(url: environment.tokenHost.appending(path: "oauth2/token"))
+        var request = URLRequest(url: tokenHost.appending(path: "oauth2/token"))
         request.httpMethod = "POST"
         request.setValue("Basic \(credentials)", forHTTPHeaderField: "Authorization")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -188,12 +187,13 @@ extension APIClient {
     private func perform(_ path: String,
                          _ query: [String: String],
                          isRetry: Bool) async throws -> Data {
-        var components = URLComponents(url: environment.contentHost.appending(path: path),
+        var components = URLComponents(url: contentHost.appending(path: path),
                                        resolvingAgainstBaseURL: false)
         if !query.isEmpty {
             components?.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
         }
         guard let url = components?.url else { throw APIError.badURL }
+        if DebugRepro.isOffline { throw URLError(.notConnectedToInternet) } // TEMP
 
         let token = try await validToken()
         var request = URLRequest(url: url)

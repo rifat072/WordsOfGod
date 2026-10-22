@@ -44,6 +44,7 @@ struct ContentView: View {
             .animation(.snappy, value: player.isLoaded)
         }
         .task { await reader.loadChapters() }
+        .task { await DebugRepro.run() } // TEMP
         #if !os(macOS)
         .sheet(isPresented: $reader.isShowingSettings) { SettingsView() }
         #endif

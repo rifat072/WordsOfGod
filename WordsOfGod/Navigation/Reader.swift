@@ -17,10 +17,19 @@ final class Reader {
     private(set) var isLoadingChapters = false
 
     var selectedChapterId: Int? = UserDefaults.standard.object(forKey: "lastChapterId") as? Int {
-        didSet { UserDefaults.standard.set(selectedChapterId, forKey: "lastChapterId") }
+        didSet {
+            UserDefaults.standard.set(selectedChapterId, forKey: "lastChapterId")
+            if selectedChapterId != oldValue { tafsirVerseKey = nil }
+        }
     }
     var verseToReveal: Int?
+    var tafsirVerseKey: String?
     var isShowingSettings = false
+
+    @ObservationIgnored
+    private var readingPositions = UserDefaults.standard.dictionary(forKey: "readingPositions") as? [String: Int] ?? [:] {
+        didSet { UserDefaults.standard.set(readingPositions, forKey: "readingPositions") }
+    }
 
     var selectedChapter: Chapter? { chapters.first { $0.id == selectedChapterId } }
 
@@ -39,6 +48,14 @@ final class Reader {
     func reveal(chapter: Int, verse: Int? = nil) {
         selectedChapterId = chapter
         verseToReveal = verse
+    }
+
+    func readingPosition(in chapter: Int) -> Int? {
+        readingPositions[String(chapter)]
+    }
+
+    func saveReadingPosition(_ verse: Int, in chapter: Int) {
+        readingPositions[String(chapter)] = verse > 1 ? verse : nil
     }
 
     func showPlayingChapter() {
