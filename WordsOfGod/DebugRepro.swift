@@ -11,15 +11,20 @@ enum DebugRepro {
         print("REPRO start chapter \(chapter) offline=\(offline)")
         while Reader.shared.chapters.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
         AppSettings.shared.wordTranslationLanguageCode = "en"
+        if let resume = args.firstIndex(of: "-at").flatMap({ Int(args[$0 + 1]) }) {
+            Reader.shared.saveReadingPosition(resume, in: chapter)
+        }
         Reader.shared.selectedChapterId = chapter
-        if let url = try? await APIClient.shared.getChapterAudio(reciterId: AppSettings.shared.selectedReciterId, chapter: chapter).url {
+        if !args.contains("-noDownload"), let url = try? await APIClient.shared.getChapterAudio(reciterId: AppSettings.shared.selectedReciterId, chapter: chapter).url {
             print("REPRO downloaded \(await OfflineAudio.shared.download(url))")
         }
         try? await Task.sleep(for: .seconds(3))
         isOffline = offline
         print("REPRO switching language to ur")
         AppSettings.shared.wordTranslationLanguageCode = "ur"
-        try? await Task.sleep(for: .seconds(5))
+        try? await Task.sleep(for: .seconds(8))
+        print("REPRO switched; done watching")
+        guard offline else { return }
         print("REPRO reopening chapter")
         Reader.shared.selectedChapterId = nil
         try? await Task.sleep(for: .seconds(2))

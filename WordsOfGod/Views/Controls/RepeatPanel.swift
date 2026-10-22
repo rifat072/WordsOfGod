@@ -14,22 +14,32 @@ struct RepeatPanel: View {
     private let player = RecitationPlayer.shared
     @State private var startVerse = 1
     @State private var endVerse = 1
+    @FocusState private var editingBound: VerseNumberField.Bound?
 
     private var verseCount: Int { chapter.verses_count }
     private var hasActiveRange: Bool { player.hasRange && player.chapter?.id == chapter.id }
 
     var body: some View {
+        #if os(macOS)
+        form
+        #else
+        NavigationStack {
+            form
+                .navigationTitle("Repeat")
+                .navigationBarTitleDisplayMode(.inline)
+        }
+        #endif
+    }
+
+    private var form: some View {
         Form {
             Section("Each Verse") {
                 RepeatCountPicker(title: "Repeat", selection: $settings.verseRepeatCount)
             }
 
             Section("Verse Range") {
-                HStack {
-                    Stepper("From \(startVerse)", value: $startVerse, in: 1...verseCount)
-                    Spacer()
-                    Stepper("To \(endVerse)", value: $endVerse, in: startVerse...verseCount)
-                }
+                VerseNumberField(bound: .start, verse: $startVerse, range: 1...verseCount, focus: $editingBound)
+                VerseNumberField(bound: .end, verse: $endVerse, range: startVerse...verseCount, focus: $editingBound)
                 RepeatCountPicker(title: "Repeat range", selection: $settings.rangeRepeatCount)
 
                 HStack {
@@ -70,6 +80,13 @@ struct RepeatPanel: View {
         #else
         .frame(minWidth: 340, idealWidth: 380, minHeight: 560)
         .presentationDetents([.medium, .large])
+        .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { editingBound = nil }
+            }
+        }
         #endif
         .onAppear(perform: loadInitialRange)
         .onChange(of: startVerse) { endVerse = max(endVerse, startVerse) }
@@ -86,10 +103,52 @@ struct RepeatPanel: View {
     }
 
     private func playRange() {
+        editingBound = nil
         guard let audio else { return }
         player.play(chapter: chapter, audio: audio, fromVerse: startVerse)
         player.setRange(from: startVerse, to: endVerse)
     }
+}
+
+private struct VerseNumberField: View {
+    enum Bound { case start, end }
+
+    let bound: Bound
+    @Binding var verse: Int
+    let range: ClosedRange<Int>
+    var focus: FocusState<Bound?>.Binding
+    @State private var text = ""
+
+    private var title: String { bound == .start ? "From verse" : "To verse" }
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 10) {
+                TextField(title, text: $text)
+                    .labelsHidden()
+                    .multilineTextAlignment(.center)
+                    .monospacedDigit()
+                    .frame(width: 64)
+                    .textFieldStyle(.roundedBorder)
+                    #if !os(macOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .focused(focus, equals: bound)
+                    .onSubmit(showVerse)
+                Stepper(title, value: $verse, in: range)
+                    .labelsHidden()
+            }
+        }
+        .onAppear(perform: showVerse)
+        // Partial input such as "2" on the way to "255" is kept as typed; only in-range numbers are applied.
+        .onChange(of: text) {
+            if let number = Int(text), range.contains(number) { verse = number }
+        }
+        .onChange(of: verse) { if Int(text) != verse { showVerse() } }
+        .onChange(of: focus.wrappedValue) { if focus.wrappedValue != bound { showVerse() } }
+    }
+
+    private func showVerse() { text = String(verse) }
 }
 
 struct RepeatCountPicker: View {

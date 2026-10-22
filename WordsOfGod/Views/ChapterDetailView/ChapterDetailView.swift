@@ -14,7 +14,6 @@ struct ChapterDetailView: View {
     @State private var isShowingRepeat = false
     @State private var scrollPosition = ScrollPosition(idType: Int.self)
     @State private var resumeVerse: Int?
-    @State private var topVerse = 1
     @Bindable private var reader = Reader.shared
     private let player = RecitationPlayer.shared
     private let settings = AppSettings.shared
@@ -55,7 +54,6 @@ struct ChapterDetailView: View {
         .scrollPosition($scrollPosition, anchor: .top)
         .onScrollTargetVisibilityChange(idType: Int.self, threshold: 0.1) { visibleVerses in
             guard let top = visibleVerses.min() else { return }
-            topVerse = top
             reader.saveReadingPosition(top, in: chapter.id)
         }
         .environment(store)
@@ -86,6 +84,9 @@ struct ChapterDetailView: View {
         }
         .navigationTitle(chapter.name_simple)
         .navigationSubtitle(subtitle)
+        #if !os(macOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar { toolbarContent }
     }
 
@@ -165,6 +166,7 @@ struct ChapterDetailView: View {
 
         ToolbarItemGroup(placement: .secondaryAction) {
             Button {
+                let topVerse = reader.readingPosition(in: chapter.id) ?? 1
                 reader.tafsirVerseKey = reader.tafsirVerseKey == nil ? "\(chapter.id):\(topVerse)" : nil
             } label: {
                 Label("Tafsir", systemImage: "text.book.closed")
